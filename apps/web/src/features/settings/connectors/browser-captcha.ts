@@ -7,6 +7,7 @@ const INVALIDATED_CAPTCHA_SESSION_CODES = new Set([
   "OBANK_CONNECTION_FAILED",
   "FIRSTBANK_BROWSER_BUSY",
   "FIRSTBANK_CONNECTION_FAILED",
+  "MEGABANK_CONNECTION_FAILED",
 ]);
 
 export function browserCaptchaFailure(error: unknown) {

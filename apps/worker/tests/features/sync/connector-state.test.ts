@@ -121,6 +121,32 @@ describe("connector state boundaries", () => {
     });
   });
 
+  it("keeps Mega Bank CAPTCHA sessions out of the cursor", () => {
+    expect(
+      splitConnectorCursorState(
+        "megabank",
+        JSON.stringify({
+          pendingSession: "synthetic-token",
+          pendingSessionExpiresAt: "2026-09-25T08:02:00.000Z",
+          captcha: "12345",
+          syncedAt: "2026-09-25T08:01:00.000Z",
+        }),
+      ),
+    ).toEqual({
+      safeCursor: JSON.stringify({ syncedAt: "2026-09-25T08:01:00.000Z" }),
+      secretState: {
+        pendingSession: "synthetic-token",
+        pendingSessionExpiresAt: "2026-09-25T08:02:00.000Z",
+        captcha: "12345",
+      },
+    });
+    expect(
+      serializePublicConnectorConfig("megabank", {
+        pendingSession: "synthetic-token",
+      }),
+    ).toBeNull();
+  });
+
   it("removes Cathay trusted browser state from the cursor", () => {
     expect(
       splitConnectorCursorState(

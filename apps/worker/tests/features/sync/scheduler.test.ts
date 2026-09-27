@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   startSyncLockHeartbeat: vi.fn(),
   syncCathaybk: vi.fn(),
   syncEsun: vi.fn(),
+  syncMegabank: vi.fn(),
   syncTaishin: vi.fn(),
   syncSkbank: vi.fn(),
 }));
@@ -60,6 +61,7 @@ vi.mock("../../../src/features/sync/service", () => ({
   prepareKgibankCaptchaSession: vi.fn(),
   prepareTaishinCaptchaSession: vi.fn(),
   prepareObankCaptchaSession: vi.fn(),
+  prepareMegabankCaptchaSession: vi.fn(),
   prepareFirstbankCaptchaSession: vi.fn(),
   safeErrorLogDetails: (error: unknown) => ({
     errorName: error instanceof Error ? error.name : typeof error,
@@ -75,6 +77,7 @@ vi.mock("../../../src/features/sync/service", () => ({
   syncEsun: mocks.syncEsun,
   syncSinopac: vi.fn(),
   syncObank: vi.fn(),
+  syncMegabank: mocks.syncMegabank,
   syncFirstbank: vi.fn(),
   syncHncb: vi.fn(),
   syncKgibank: vi.fn(),
@@ -182,6 +185,16 @@ beforeEach(() => {
     newRecords: {
       invoices: 0,
       bankTransactions: 2,
+      investmentTransactions: 0,
+    },
+  });
+  mocks.syncMegabank.mockResolvedValue({
+    connectorId: "megabank",
+    scope: "all",
+    records: 2,
+    newRecords: {
+      invoices: 0,
+      bankTransactions: 1,
       investmentTransactions: 0,
     },
   });
@@ -308,6 +321,20 @@ describe("scheduled sync rounds", () => {
     await runSchedulerTick(env(), scheduledController);
 
     expect(mocks.syncCathaybk).toHaveBeenCalledWith(
+      expect.anything(),
+      "scheduled",
+      {},
+    );
+  });
+
+  it("dispatches a scheduled Mega Bank job without manual CAPTCHA", async () => {
+    const job = syncJob("custom", "megabank");
+    mocks.findOpenDefaultScheduleBatchId.mockResolvedValue(null);
+    mocks.findNextDueSyncJob.mockResolvedValue(job);
+
+    await runSchedulerTick(env(), scheduledController);
+
+    expect(mocks.syncMegabank).toHaveBeenCalledWith(
       expect.anything(),
       "scheduled",
       {},

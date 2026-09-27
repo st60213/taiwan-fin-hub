@@ -38,6 +38,21 @@ describe("browserCaptchaFailure", () => {
     });
   });
 
+  it("clears a rejected Mega Bank API CAPTCHA session", () => {
+    expect(
+      browserCaptchaFailure(
+        new ApiRequestError(
+          "MEGABANK_CONNECTION_FAILED",
+          "兆豐銀行查詢失敗。",
+          502,
+        ),
+      ),
+    ).toEqual({
+      message: "兆豐銀行查詢失敗。 請重新取得驗證碼。",
+      sessionInvalidated: true,
+    });
+  });
+
   it("invalidates a First Bank CAPTCHA session after a browser failure", () => {
     const message = "第一銀行瀏覽器工作階段已失效。";
     expect(

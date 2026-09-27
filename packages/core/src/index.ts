@@ -274,22 +274,6 @@ export interface ApiErrorResponse {
   };
 }
 
-export const supportedConnectorIds = [
-  "einvoice",
-  "tdcc",
-  "esun",
-  "cathaybk",
-  "sinopac",
-  "taishin",
-  "ctbc",
-  "skbank",
-  "obank",
-  "hncb",
-  "firstbank",
-  "kgibank",
-] as const;
-export type ConnectorId = (typeof supportedConnectorIds)[number];
-
 export type ConnectorConnectionMode =
   | "api_credentials"
   | "api_captcha_session"
@@ -310,7 +294,7 @@ export type ConnectorCapability =
   | "net_worth_history";
 
 export interface ConnectorCatalogEntry {
-  id: ConnectorId;
+  id: string;
   title: string;
   description: string;
   connectionMode: ConnectorConnectionMode;
@@ -540,6 +524,35 @@ export const connectorCatalog = {
       "captcha",
     ],
   },
+  hncb: {
+    id: "hncb",
+    title: "華南銀行",
+    description: "存款帳戶與餘額；信用卡帳單與刷卡明細",
+    connectionMode: "browser_captcha_session",
+    scopes: ["all"],
+    capabilities: [
+      "bank_account",
+      "bank_balance_snapshot",
+      "bank_transaction",
+      "credit_card_bill",
+    ],
+    publicFields: [],
+    credentialFields: ["userId", "account", "password"],
+    secretStateFields: [
+      "sessionCookies",
+      "sessionCreatedAt",
+      "browserSessionId",
+      "captcha",
+    ],
+    resetOnCredentialChangeFields: [
+      "sessionCookies",
+      "sessionCreatedAt",
+      "browserSessionId",
+      "browserSessionExpiresAt",
+      "captchaDigitCount",
+      "captcha",
+    ],
+  },
   firstbank: {
     id: "firstbank",
     title: "第一銀行",
@@ -571,35 +584,6 @@ export const connectorCatalog = {
       "captcha",
     ],
   },
-  hncb: {
-    id: "hncb",
-    title: "華南銀行",
-    description: "存款帳戶與餘額；信用卡帳單與刷卡明細",
-    connectionMode: "browser_captcha_session",
-    scopes: ["all"],
-    capabilities: [
-      "bank_account",
-      "bank_balance_snapshot",
-      "bank_transaction",
-      "credit_card_bill",
-    ],
-    publicFields: [],
-    credentialFields: ["userId", "account", "password"],
-    secretStateFields: [
-      "sessionCookies",
-      "sessionCreatedAt",
-      "browserSessionId",
-      "captcha",
-    ],
-    resetOnCredentialChangeFields: [
-      "sessionCookies",
-      "sessionCreatedAt",
-      "browserSessionId",
-      "browserSessionExpiresAt",
-      "captchaDigitCount",
-      "captcha",
-    ],
-  },
   kgibank: {
     id: "kgibank",
     title: "凱基銀行",
@@ -617,14 +601,37 @@ export const connectorCatalog = {
       "captcha",
     ],
   },
-} as const satisfies Record<ConnectorId, ConnectorCatalogEntry>;
+  megabank: {
+    id: "megabank",
+    title: "兆豐銀行",
+    description: "存款帳戶、餘額與交易明細；信用卡帳單與消費",
+    connectionMode: "api_captcha_session",
+    scopes: ["all"],
+    capabilities: [
+      "bank_account",
+      "bank_balance_snapshot",
+      "bank_transaction",
+      "credit_card_bill",
+    ],
+    publicFields: [],
+    credentialFields: ["userId", "account", "password"],
+    secretStateFields: ["pendingSession", "pendingSessionExpiresAt", "captcha"],
+    resetOnCredentialChangeFields: [
+      "pendingSession",
+      "pendingSessionExpiresAt",
+      "captcha",
+    ],
+  },
+} as const satisfies Record<string, ConnectorCatalogEntry>;
+
+export type ConnectorId = keyof typeof connectorCatalog;
 
 export type ConnectorFormFieldKey<TConnectorId extends ConnectorId> =
   | (typeof connectorCatalog)[TConnectorId]["credentialFields"][number]
   | (typeof connectorCatalog)[TConnectorId]["publicFields"][number];
 
 export function isConnectorId(value: string): value is ConnectorId {
-  return supportedConnectorIds.includes(value as ConnectorId);
+  return Object.hasOwn(connectorCatalog, value);
 }
 
 export * from "./activity-types";

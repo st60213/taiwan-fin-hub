@@ -8,6 +8,7 @@ import {
   prepareTaishinCaptchaSession,
   prepareObankCaptchaSession,
   prepareFirstbankCaptchaSession,
+  prepareMegabankCaptchaSession,
   syncCathaybk,
   syncCtbc,
   syncSkbank,
@@ -19,6 +20,7 @@ import {
   syncKgibank,
   syncTaishin,
   syncTdcc,
+  syncMegabank,
   SYNC_SCOPE_ALL,
   TDCC_SCOPE_BANK,
   TDCC_SCOPE_INVESTMENTS,
@@ -33,6 +35,7 @@ import {
   type TaishinSyncOverrides,
   type TdccSyncOverrides,
   type CathaySyncOverrides,
+  type MegabankSyncOverrides,
 } from "./service";
 
 type ConnectorRuntimeDefinition = {
@@ -107,6 +110,11 @@ export const connectorRuntimeRegistry: Record<
     run: (env, trigger, _scope, overrides) =>
       syncKgibank(env, trigger, overrides as KgibankSyncOverrides),
     prepareChallenge: prepareKgibankCaptchaSession,
+  },
+  megabank: {
+    run: (env, trigger, _scope, overrides) =>
+      syncMegabank(env, trigger, overrides as MegabankSyncOverrides),
+    prepareChallenge: prepareMegabankCaptchaSession,
   },
 };
 

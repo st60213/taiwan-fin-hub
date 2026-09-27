@@ -37,6 +37,7 @@ const mocks = vi.hoisted(() => ({
   prepareHncbCaptchaSession: vi.fn(),
   prepareKgibankCaptchaSession: vi.fn(),
   prepareObankCaptchaSession: vi.fn(),
+  prepareMegabankCaptchaSession: vi.fn(),
   prepareFirstbankCaptchaSession: vi.fn(),
   startEinvoiceSyncRun: vi.fn(),
   startTdccSyncRun: vi.fn(),
@@ -44,6 +45,7 @@ const mocks = vi.hoisted(() => ({
   syncCathaybk: vi.fn(),
   syncEsun: vi.fn(),
   syncObank: vi.fn(),
+  syncMegabank: vi.fn(),
   syncFirstbank: vi.fn(),
   syncHncb: vi.fn(),
   syncKgibank: vi.fn(),
@@ -73,6 +75,7 @@ vi.mock("../../../src/features/sync/service", () => ({
   prepareKgibankCaptchaSession: mocks.prepareKgibankCaptchaSession,
   prepareTaishinCaptchaSession: mocks.prepareTaishinCaptchaSession,
   prepareObankCaptchaSession: mocks.prepareObankCaptchaSession,
+  prepareMegabankCaptchaSession: mocks.prepareMegabankCaptchaSession,
   prepareFirstbankCaptchaSession: mocks.prepareFirstbankCaptchaSession,
   safeErrorMessage: (error: unknown) =>
     error instanceof Error ? error.message : String(error),
@@ -82,6 +85,7 @@ vi.mock("../../../src/features/sync/service", () => ({
   syncEsun: mocks.syncEsun,
   syncSinopac: vi.fn(),
   syncObank: mocks.syncObank,
+  syncMegabank: mocks.syncMegabank,
   syncFirstbank: mocks.syncFirstbank,
   syncHncb: mocks.syncHncb,
   syncKgibank: mocks.syncKgibank,
@@ -210,6 +214,24 @@ beforeEach(() => {
     newRecords: {
       invoices: 0,
       bankTransactions: 3,
+      investmentTransactions: 0,
+    },
+    cursorUpdated: true,
+  });
+  mocks.prepareMegabankCaptchaSession.mockResolvedValue({
+    captchaImage: "data:image/jpeg;base64,AQID",
+    expiresAt: "2026-09-25T12:02:00.000Z",
+    captchaLength: 5,
+    captchaKind: "numeric",
+  });
+  mocks.syncMegabank.mockResolvedValue({
+    success: true,
+    connectorId: "megabank",
+    scope: "all",
+    records: 4,
+    newRecords: {
+      invoices: 0,
+      bankTransactions: 2,
       investmentTransactions: 0,
     },
     cursorUpdated: true,
@@ -804,6 +826,47 @@ describe("O-Bank sync routes", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: { code: "OBANK_CONNECTION_FAILED" },
     });
+  });
+});
+
+describe("Mega Bank sync routes", () => {
+  it("returns a five-digit CAPTCHA challenge", async () => {
+    const response = await syncRoutes.request(
+      "/connectors/megabank/captcha",
+      { method: "POST" },
+      env,
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      captchaLength: 5,
+      captchaKind: "numeric",
+    });
+  });
+
+  it("dispatches manual sync only with a valid five-digit CAPTCHA", async () => {
+    const valid = await syncRoutes.request(
+      "/connectors/megabank/sync",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ captcha: "12345" }),
+      },
+      env,
+    );
+    expect(valid.status).toBe(200);
+    expect(mocks.syncMegabank).toHaveBeenCalledWith(env, "manual", {
+      captcha: "12345",
+    });
+    const invalid = await syncRoutes.request(
+      "/connectors/megabank/sync",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ captcha: "1234" }),
+      },
+      env,
+    );
+    expect(invalid.status).toBe(400);
   });
 });
 

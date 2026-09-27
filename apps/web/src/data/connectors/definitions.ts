@@ -1,6 +1,5 @@
 import {
   connectorCatalog,
-  supportedConnectorIds,
   type ConnectorFormFieldKey,
 } from "@taiwan-fin-hub/core";
 import type { ConnectorField, ConnectorId } from "./types";
@@ -11,12 +10,9 @@ export interface ConnectorDefinition {
   description: string;
 }
 
-export const connectorDefinitions: ConnectorDefinition[] =
-  supportedConnectorIds.map((id) => ({
-    id,
-    title: connectorCatalog[id].title,
-    description: connectorCatalog[id].description,
-  }));
+export const connectorDefinitions: ConnectorDefinition[] = Object.values(
+  connectorCatalog,
+).map(({ id, title, description }) => ({ id, title, description }));
 
 type ConnectorFieldMap = {
   [TConnectorId in ConnectorId]: Array<
@@ -82,5 +78,10 @@ export const connectorFields = {
     { key: "userId", label: "身分證字號／統編", type: "text" },
     { key: "account", label: "登入代號", type: "text" },
     { key: "password", label: "網路銀行密碼", type: "password" },
+  ],
+  megabank: [
+    { key: "userId", label: "身分證字號／居留證號", type: "text" },
+    { key: "account", label: "使用者代號", type: "text" },
+    { key: "password", label: "行動銀行登入密碼", type: "password" },
   ],
 } satisfies ConnectorFieldMap;

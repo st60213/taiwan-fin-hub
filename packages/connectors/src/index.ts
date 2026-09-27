@@ -194,6 +194,26 @@ export {
 export type { KgibankConfig, KgibankData, KgibankPayloads } from "./kgibank";
 import { kgibankConfigSchema } from "./kgibank";
 
+export {
+  megabankConfigSchema,
+  parseMegabankConfig,
+  parseMegabankData,
+} from "./megabank";
+export type {
+  MegabankConfig,
+  MegabankData,
+  MegabankPayloads,
+} from "./megabank";
+export {
+  createMegabankConnector,
+  MegabankConnectionError,
+  MegabankProtocolError,
+  MegabankVerificationRequiredError,
+  prepareMegabankCaptcha,
+} from "./megabank-mobile-api";
+export type { MegabankCaptchaChallenge } from "./megabank-mobile-api";
+import { megabankConfigSchema } from "./megabank";
+
 const invoiceRecordSchema = z.object({
   sourceId: z.string().min(1),
   invoiceNumber: z.string().optional(),
@@ -804,6 +824,7 @@ export const connectorConfigSchemas = {
   firstbank: firstbankConfigSchema,
   hncb: hncbConfigSchema,
   kgibank: kgibankConfigSchema,
+  megabank: megabankConfigSchema,
 } satisfies Record<ConnectorId, z.ZodTypeAny>;
 
 export function parseConnectorConfig(
