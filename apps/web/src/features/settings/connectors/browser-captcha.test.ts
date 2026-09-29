@@ -76,4 +76,15 @@ describe("browserCaptchaFailure", () => {
       sessionInvalidated: false,
     });
   });
+
+  it("shows the Browser Run daily reset message without a CAPTCHA instruction", () => {
+    const message =
+      "Cloudflare 瀏覽器今日使用額度已用完。額度每日台灣時間早上 8 點重置，請於重置後再試。";
+    expect(
+      browserCaptchaFailure(new ApiRequestError("BROWSER_BUSY", message, 429)),
+    ).toEqual({
+      message,
+      sessionInvalidated: false,
+    });
+  });
 });

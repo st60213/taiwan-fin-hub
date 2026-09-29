@@ -266,6 +266,8 @@ assert.deepEqual(plaintext.subarray(prefix.length), expected);
 let oauthCalls = 0;
 let loginCode = "0000";
 let malformedResource: string | null = null;
+let resourceError: { resource: string; code: string } | undefined;
+let logoutHttpError = false;
 const requests: string[] = [];
 const fetcher = async (
   input: RequestInfo | URL,
@@ -302,8 +304,16 @@ const fetcher = async (
     } else if (request.resource.endsWith("/login")) {
       assert.equal(request.rqData.captchaCode, "12345");
       response = { code: loginCode, rsData: {} };
+    } else if (request.resource === "/fco/fco02011/logout") {
+      response = { code: "0000" };
+      if (logoutHttpError) {
+        return new Response(JSON.stringify(response), { status: 503 });
+      }
     } else if (request.resource === "/fco/fco10001/home") {
-      response = { code: "0000", ...(payloads.deposits as object) };
+      response =
+        resourceError?.resource === request.resource
+          ? { code: resourceError.code }
+          : { code: "0000", ...(payloads.deposits as object) };
     } else if (request.resource === "/fco/fco10007/home") {
       response =
         malformedResource === request.resource
@@ -356,7 +366,17 @@ assert.equal(result.bankTransactions?.length, 4);
 assert.equal(result.creditCardBills?.length, 1);
 assert.ok(requests.includes("/fao/fao01010/query"));
 assert.ok(requests.includes("/fao/fao01001/query"));
+assert.equal(requests.at(-1), "/fco/fco02011/logout");
 assert.equal(JSON.stringify(result.cursor).includes("token"), false);
+logoutHttpError = true;
+const resultWithLogoutFailure = await connector.sync({
+  ...credentials,
+  pendingSession: challenge.pendingSession,
+  pendingSessionExpiresAt: challenge.pendingSessionExpiresAt,
+  captcha: "12345",
+});
+assert.equal(resultWithLogoutFailure.bankAccounts?.length, 2);
+logoutHttpError = false;
 for (const resource of [
   "/fco/fco10007/home",
   "/fao/fao01009/home",
@@ -376,6 +396,9 @@ for (const resource of [
 }
 malformedResource = null;
 loginCode = "0113";
+const logoutCountBeforeLoginFailure = requests.filter(
+  (resource) => resource === "/fco/fco02011/logout",
+).length;
 await assert.rejects(
   connector.sync({
     ...credentials,
@@ -384,5 +407,34 @@ await assert.rejects(
     captcha: "12345",
   }),
   MegabankVerificationRequiredError,
+);
+assert.equal(
+  requests.filter((resource) => resource === "/fco/fco02011/logout").length,
+  logoutCountBeforeLoginFailure,
+);
+loginCode = "0000";
+resourceError = {
+  resource: "/fco/fco10001/home",
+  code: "SYS014",
+};
+const logoutCountBeforeResourceFailure = requests.filter(
+  (resource) => resource === "/fco/fco02011/logout",
+).length;
+await assert.rejects(
+  connector.sync({
+    ...credentials,
+    pendingSession: challenge.pendingSession,
+    pendingSessionExpiresAt: challenge.pendingSessionExpiresAt,
+    captcha: "12345",
+  }),
+  (error: unknown) => {
+    assert.ok(error instanceof MegabankProtocolError);
+    assert.match(error.message, /若目前已登入兆豐網銀，請登出後再試。/);
+    return true;
+  },
+);
+assert.equal(
+  requests.filter((resource) => resource === "/fco/fco02011/logout").length,
+  logoutCountBeforeResourceFailure + 1,
 );
 console.log("megabank selfcheck passed");

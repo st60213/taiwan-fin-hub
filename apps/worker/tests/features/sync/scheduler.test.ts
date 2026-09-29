@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
   syncMegabank: vi.fn(),
   syncTaishin: vi.fn(),
   syncSkbank: vi.fn(),
+  syncNextbank: vi.fn(),
 }));
 
 vi.mock("../../../src/features/sync/einvoice-sync-service", () => ({
@@ -62,6 +63,8 @@ vi.mock("../../../src/features/sync/service", () => ({
   prepareTaishinCaptchaSession: vi.fn(),
   prepareObankCaptchaSession: vi.fn(),
   prepareMegabankCaptchaSession: vi.fn(),
+  prepareNextbankCaptchaSession: vi.fn(),
+  syncNextbank: mocks.syncNextbank,
   prepareFirstbankCaptchaSession: vi.fn(),
   safeErrorLogDetails: (error: unknown) => ({
     errorName: error instanceof Error ? error.name : typeof error,
@@ -307,6 +310,29 @@ describe("scheduled sync rounds", () => {
     await runSchedulerTick(env(), scheduledController);
 
     expect(mocks.syncTaishin).toHaveBeenCalledWith(
+      expect.anything(),
+      "scheduled",
+      {},
+    );
+  });
+
+  it("dispatches a Nextbank schedule without reusing a manual CAPTCHA", async () => {
+    mocks.findOpenDefaultScheduleBatchId.mockResolvedValue(null);
+    mocks.findNextDueSyncJob.mockResolvedValue(syncJob("custom", "nextbank"));
+    mocks.syncNextbank.mockResolvedValueOnce({
+      success: true,
+      connectorId: "nextbank",
+      scope: "all",
+      records: 0,
+      newRecords: {
+        invoices: 0,
+        bankTransactions: 0,
+        investmentTransactions: 0,
+      },
+      cursorUpdated: true,
+    });
+    await runSchedulerTick(env(), scheduledController);
+    expect(mocks.syncNextbank).toHaveBeenCalledWith(
       expect.anything(),
       "scheduled",
       {},

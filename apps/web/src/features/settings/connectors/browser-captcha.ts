@@ -24,3 +24,11 @@ export function browserCaptchaFailure(error: unknown) {
     sessionInvalidated,
   };
 }
+
+export function needsNextbankCaptcha(connectorId: string, error: unknown) {
+  return (
+    connectorId === "nextbank" &&
+    error instanceof ApiRequestError &&
+    error.code === "NEXTBANK_CAPTCHA_REQUIRED"
+  );
+}

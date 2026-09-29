@@ -8,6 +8,21 @@ import {
 } from "../../../src/features/sync/connector-state";
 
 describe("connector state boundaries", () => {
+  it("keeps Nextbank challenge and token values out of the sync cursor", () => {
+    const split = splitConnectorCursorState(
+      "nextbank",
+      JSON.stringify({
+        syncedAt: "2026-09-27",
+        captchaUuid: "synthetic-challenge",
+        captchaExpiresAt: 1000,
+      }),
+    );
+    expect(JSON.parse(split.safeCursor)).toEqual({ syncedAt: "2026-09-27" });
+    expect(split.secretState).toEqual({
+      captchaUuid: "synthetic-challenge",
+      captchaExpiresAt: 1000,
+    });
+  });
   it("keeps retired public preferences out of encrypted config", () => {
     expect(
       sensitiveConnectorConfig("einvoice", {

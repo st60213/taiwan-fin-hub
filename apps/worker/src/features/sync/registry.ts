@@ -15,6 +15,8 @@ import {
   syncEsun,
   syncSinopac,
   syncObank,
+  syncNextbank,
+  prepareNextbankCaptchaSession,
   syncFirstbank,
   syncHncb,
   syncKgibank,
@@ -100,6 +102,11 @@ export const connectorRuntimeRegistry: Record<
     run: (env, trigger, _scope, overrides) =>
       syncObank(env, trigger, overrides as ObankSyncOverrides),
     prepareChallenge: prepareObankCaptchaSession,
+  },
+  nextbank: {
+    run: (env, trigger, _scope, overrides) =>
+      syncNextbank(env, trigger, overrides),
+    prepareChallenge: prepareNextbankCaptchaSession,
   },
   firstbank: {
     run: (env, trigger, _scope, overrides) =>
