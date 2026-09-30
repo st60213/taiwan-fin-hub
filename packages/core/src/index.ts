@@ -599,10 +599,10 @@ export const connectorCatalog = {
   rakuten: {
     id: "rakuten",
     title: "樂天國際銀行",
-    description: "臺幣活存帳戶與每日餘額",
+    description: "臺幣活存帳戶、每日餘額與交易明細",
     connectionMode: "browser_captcha_session",
     scopes: ["all"],
-    capabilities: ["bank_account", "bank_balance_snapshot"],
+    capabilities: ["bank_account", "bank_balance_snapshot", "bank_transaction"],
     publicFields: [],
     credentialFields: ["userId", "account", "password"],
     secretStateFields: [
