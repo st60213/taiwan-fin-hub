@@ -511,7 +511,7 @@ export const connectorCatalog = {
   nextbank: {
     id: "nextbank",
     title: "將來銀行",
-    description: "存款、口袋餘額與交易明細（開發驗證中；投資尚未接入）",
+    description: "存款、口袋餘額與交易明細（投資尚未接入）",
     connectionMode: "api_captcha_session",
     scopes: ["all"],
     capabilities: ["bank_account", "bank_balance_snapshot", "bank_transaction"],

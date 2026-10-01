@@ -248,7 +248,9 @@ Migration `0043_merge_legacy_invoice_duplicates.sql` 以相同發票號碼整併
 
 永豐信用卡使用 SinoCard `accounting/accountinginfo` 的 `BillAmounts` 取得各幣別本期帳務，
 以 `CURRBAL` 保存應繳總額、`DUEAMT` 保存最低應繳、`TotalPaymentAmt` 保存本期累計已繳款。
-餘額快照使用應繳總額扣除同幣別已繳款，最低為零；缺少已繳款金額時不建立該筆快照。
+應繳總額保留原始正負號，允許退款或溢繳形成的負帳單。餘額快照使用同幣別已繳款減去應繳總額，
+負值為欠款，正值為溢繳餘額；餘額非負時標記無需繳款。缺少已繳款金額時不建立該筆帳務快照，
+台幣總覽的負應繳金額仍保留為正餘額，不取絕對值或歸零。
 結帳日與繳款期限分別取自 `BaseData.STMTDATE`、`BaseData.DUEDATE`；保留既有台幣歷史帳單查詢。
 外幣未列於本期 `BillAmounts` 時，使用銀行本次 `OutstandingDetail.SubTotal` 小計作為未出帳負債快照，
 不建立帳單、不填入繳款期限；不得累加本機歷史交易替代本次小計。資產頁對未知信用卡餘額顯示
@@ -375,22 +377,22 @@ Migration `0043_merge_legacy_invoice_duplicates.sql` 以相同發票號碼整併
 
 ### 兆豐銀行
 
-- 使用 App 2.5.19 的 MobileFirst API：OAuth client credentials、`/main/init`、App 初始化、五位數字驗證碼、E2EE RSA／TripleDES 帳密登入。一般登入不要求快速登入或裝置綁定。本機與 Cloudflare Workers 線上皆已完成實際同步（含異地登入簡訊驗證）。
+- 使用 App 2.5.19 的 MobileFirst API：OAuth client credentials、`/main/init`、App 初始化、五位數字驗證碼、E2EE RSA／TripleDES 帳密登入。一般登入不要求快速登入或裝置綁定。
 - 人工驗證碼的待登入 session 只保存於 `encrypted_config`，兩分鐘到期，成功或失敗後清除；排程同步使用 Workers AI 辨識。`sync_cursor` 只含同步時間。
 - 登入回應的 `resultType` 與官方網銀前端相同：`0` 成功、`1` 重複登入、`3` 提示綁定裝置、`6` 已有兩台裝置、`7` 已綁定等；`3` 不影響查詢權限，連接器不做裝置綁定。`isTrustUser` 是信託戶旗標，與裝置信任無關。
-- 登入後依官方前端 `do2FactorCheck` 判斷：`secondFactorFlag=Y` 為雙重驗證，連接器不支援，登出並中止；否則 `isHighIpFar=true` 表示異地登入，必須完成簡訊或 Email 驗證碼，未驗證前查詢回 `SYS014`「權限不足」。實測帳號在 Workers 與台灣家用 IP 都曾被標為異地。簡訊驗證只在短時間內有效：驗證後約 15 分鐘內再登入不需簡訊，約一小時後同一個虛擬裝置再登入仍會被標為異地，因此排程同步無法長期免簡訊。
+- 登入後依官方前端 `do2FactorCheck` 判斷：`secondFactorFlag=Y` 為雙重驗證，連接器不支援，登出並中止；否則 `isHighIpFar=true` 表示異地登入，必須完成簡訊或 Email 驗證碼，未驗證前查詢回 `SYS014`「權限不足」。簡訊驗證只在短時間內有效：驗證後約 15 分鐘內再登入不需簡訊，約一小時後同一個虛擬裝置再登入仍會被標為異地，因此排程同步無法長期免簡訊。
 - 異地登入只在手動同步處理：以 `megapmb` 呼叫 `/fco/fco00001/getverifycode`（`type=sms`）請銀行寄簡訊，回應的 `checkCode`（簡訊檢核碼）放入 `MEGABANK_SMS_OTP_REQUIRED` 訊息供使用者對照；已登入的工作階段以 `authenticated=true` 序列化後寫回 `encrypted_config` 的 `pendingSession`，三分鐘到期、只供這一次驗證使用。使用者送出 `otp` 後呼叫 `/fco/fco00001/validatecode`，`success=true` 才接續同一個登入查詢並登出；`success=false` 回 `MEGABANK_OTP_INVALID` 並保留工作階段讓使用者重輸；非 `0000` 代碼、逾時或其他錯誤一律登出並清除狀態。排程同步遇到異地登入直接登出、標記需要使用者處理，不觸發簡訊。
 - 新一輪同步若發現上一輪等待驗證碼的已登入工作階段仍在設定中，會先盡力登出再重新登入。
 - 虛擬裝置識別（`deviceCode`、`deviceUKey`、`deviceSeed`）在第一次人工取得驗證碼時產生並寫入 `encrypted_config`，之後的驗證碼 session 與登入都沿用同一組，比照 App 同一台裝置，讓短時間內的連續同步沿用剛完成的簡訊驗證；它不等於 App 的「綁定裝置」（登入回應 `resultType=3` 的提示），無法讓之後的登入長期免簡訊；帳密變更時依 `resetOnCredentialChangeFields` 重設。它只是裝置識別，不含 cookie 或 token，不屬於重用銀行 session。
 - 登入後無論同步成功或失敗，都依 App 流程呼叫 `/fco/fco02011/logout` 釋放銀行工作階段；登出失敗不覆蓋同步結果或原始錯誤。
-- 本機曾觀察到網銀登入期間同步回 `SYS014`，登出網銀後同步成功；這支持工作階段衝突的推論，但尚無 `SYS014` 的官方定義。此代碼會提示先登出網銀再試，連接器不自動接管其他登入。
+- 查詢回 `SYS014` 時會提示先登出網銀再試，連接器不自動接管其他登入。
 - 驗證碼準備及同步後的設定寫入會比對當初讀取的加密設定；promotion batch 也先檢查同一版本，期間若憑證已更新，不寫入舊帳務、舊憑證或同步游標。
 - 兆豐同步工作建立時停用；首次成功同步後會比照永豐、台新與王道自動啟用。若使用者之後手動停用，再次手動同步不會重新啟用。
-- 存款清單取 `/fco/fco10001/home`；臺幣交易按帳戶查 `/fao/fao01001/query`，最多回溯三個月並處理 `tsqName` 分頁。外幣帳戶與餘額仍會同步，外幣交易查詢尚未完成協定驗證。
-- 信用卡總覽與餘額取 `/fco/fco10007/home`，近三期帳單取 `/fao/fao01009/home`，消費取 `/fao/fao01010/home` 與 `query`。總覽 `creditCardBillInfoList` 為空時視為沒有信用卡，不查帳單與卡片清單、只同步存款；總覽有卡但帳單或卡片清單缺少預期欄位時仍整次失敗。本機真實登入已確認這些端點及總覽、帳單、消費查詢的外層欄位；探測只記錄欄位型別與筆數，未保存金額或交易內容。
-- 總覽 `creditCardBillInfoList` 依 `ACCT_TYPE` 與 `CURR_CODE` 區分；`ACCT_MON=999912` 是未出帳，其餘僅取各組最新一期計算目前應繳，不累加歷史帳單。消費的 `acctMon=999912` 表示未入帳；本機同步的信用卡消費金額已與 App 顯示核對一致，其他內層欄位尚待逐一核對。
+- 存款清單取 `/fco/fco10001/home`；臺幣交易按帳戶查 `/fao/fao01001/query`，最多回溯三個月並處理 `tsqName` 分頁。外幣帳戶與餘額會同步，不查詢外幣交易。
+- 信用卡總覽與餘額取 `/fco/fco10007/home`，近三期帳單取 `/fao/fao01009/home`，消費取 `/fao/fao01010/home` 與 `query`。總覽 `creditCardBillInfoList` 為空時視為沒有信用卡，不查帳單與卡片清單、只同步存款；總覽有卡但帳單或卡片清單缺少預期欄位時仍整次失敗。
+- 總覽 `creditCardBillInfoList` 依 `ACCT_TYPE` 與 `CURR_CODE` 區分；`ACCT_MON=999912` 是未出帳，其餘僅取各組最新一期計算目前應繳，不累加歷史帳單。消費的 `acctMon=999912` 表示未入帳。
 - 帳戶與卡號只用於請求和雜湊識別；持久化的 `raw` 只保留末四碼。任何關鍵回應無法解析時整次同步失敗，避免部分更新。
 
 ## 將來銀行
 
-使用銀行 Web API 與人工 CAPTCHA／自動辨識，單次帳密登入、查詢後登出，不接管其他工作階段。主帳戶查詢最近三個月，活存口袋讀取所有分頁後依日期篩選；定存口袋目前僅合成驗證，基金與美股未接入。排程預設停用，排程登入尚未真實驗收。設定 CAS 與原子寫入 guard 防止查詢期間變更帳密後仍寫入舊結果。
+使用網銀帳密，直接呼叫網銀內部 Web API 登入與查詢；圖形驗證碼支援 AI 自動辨識或人工輸入。單次登入、查詢後登出，不接管其他工作階段。主帳戶查詢最近三個月，活存口袋讀取所有分頁後依日期篩選；定存口袋同步餘額，基金與美股未接入。排程預設停用。設定 CAS 與原子寫入 guard 防止查詢期間變更帳密後仍寫入舊結果。

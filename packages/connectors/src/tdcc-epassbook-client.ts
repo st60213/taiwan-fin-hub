@@ -2,7 +2,7 @@
 // Trimmed to the ePassbook login/OTP and snapshot/page APIs used by the
 // connector. Durable callers own pagination and promotion of staged pages.
 const BASE_URL = "https://epassbooksys.tdcc.com.tw/MPSBKV2/rest/";
-const APP_INFO = "tw.com.tdcc.epassbook:3.3.4";
+const APP_INFO = "tw.com.tdcc.epassbook:3.3.8";
 const API_VER = "20250220";
 const DEFAULT_LAST_UPDATE = "19000101000000";
 const BANK_TRANSACTION_PAGE_SIZE = 100;

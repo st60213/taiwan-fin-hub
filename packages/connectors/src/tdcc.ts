@@ -202,6 +202,8 @@ const SESSION_EXPIRED_CODES = new Set([
   "A0001",
   "A0002",
   "T8000",
+  "D9993",
+  "D9998",
 ]);
 // The stored OTP timed out before this sync ran; it's now dead, so the caller
 // must drop it from config and have the user request a fresh one.
