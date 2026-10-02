@@ -22,7 +22,7 @@ openssl rand -hex 32
 
 ### 2. 執行 Deploy to Cloudflare
 
-帳戶需先啟用 [Zero Trust](https://developers.cloudflare.com/cloudflare-one/setup/)，可選免費方案。點擊 **Deploy to Cloudflare**，授權 Cloudflare 存取 GitHub，填入 `CONFIG_ENCRYPTION_KEY`，將 **Build command** 設為 `npm run build`、**Deploy command** 設為 `npm run deploy`。在同一頁開啟 **Protect with Cloudflare Access**，選擇 **All traffic** 與 **Cloudflare account**，確認後點擊 **Deploy**。
+點擊 **Deploy to Cloudflare**，授權 Cloudflare 存取 GitHub，填入 `CONFIG_ENCRYPTION_KEY`，將 **Build command** 設為 `npm run build`、**Deploy command** 設為 `npm run deploy`。在同一頁開啟 **Protect with Cloudflare Access**，選擇 **All traffic** 與 **Cloudflare account**，確認後點擊 **Deploy**。
 
 <img src="../images/deploy-setup.png" alt="Cloudflare 部署頁的 CONFIG_ENCRYPTION_KEY 欄位" width="700">
 
@@ -137,6 +137,8 @@ Cloudflare Access 預設可能使用 Email OTP。如要限定 Cloudflare 帳號�
 ### 延長登入期限
 
 部署頁的 **Session duration** 最多可選 **7 days**。若要延長至一個月，部署完成後在 **Zero Trust → Access controls → Applications** 找到保護此 Worker 的 Application，再依下列方式調整：
+
+若頁面顯示 **Finish your account setup**，先點擊 **Choose a plan**，完成 **Zero Trust Free** 方案設定；這是進入 Zero Trust 管理介面的步驟，無須列為一鍵部署的前置設定。
 
 1. 點擊該 Application 的 **Configure**，開啟 **Application details**。
 2. 點擊頁面上方與 **All、Destinations、Policies** 同一排的 **Details** 按鈕，或直接向下捲到頁面最下方。

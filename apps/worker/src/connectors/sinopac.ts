@@ -14,6 +14,7 @@ import type {
 } from "@taiwan-fin-hub/core";
 import {
   BANK_SYNC_MONTHS,
+  isNoCreditCardMessage,
   type SinopacConfig,
 } from "@taiwan-fin-hub/connectors";
 
@@ -200,10 +201,14 @@ class SinopacAppClient {
 
   async fetchCreditCards(): Promise<SinopacApiPayloads> {
     const summary = await this.fetchSummary();
+    if (summary === undefined)
+      return { summary, bills: [], hasValidCard: false };
     const initialBills = await this.post(
       `${CARD_BILLS_PATH}?TxDate=default&TxType=01`,
       "近期帳單",
     );
+    if (initialBills === undefined)
+      return { summary, bills: [], hasValidCard: false };
     const billMonths = extractAdvertisedBillMonths(initialBills).slice(
       1,
       BANK_SYNC_MONTHS,
@@ -288,6 +293,12 @@ class SinopacAppClient {
       throw new Error(`永豐${label} API 回應不是有效 JSON。`);
     }
     assertSinopacApiSuccess(payload, label);
+    if (
+      flattenRecords(payload).some((record) =>
+        isNoCreditCardMessage(record.Message),
+      )
+    )
+      return undefined;
     return payload;
   }
 
@@ -340,7 +351,7 @@ class SinopacAppClient {
     if (
       path === CARD_LATEST_TX_PATH &&
       isRecord(payload) &&
-      stringValue(payload.ResultMessage) === "您沒有有效卡"
+      isNoCreditCardMessage(payload.ResultMessage)
     ) {
       return undefined;
     }
@@ -788,7 +799,7 @@ function assertSinopacApiSuccess(payload: unknown, label: string) {
       "永豐銀行 session 已失效，請重新完成圖形驗證。",
     );
   }
-  if (message === "查無消費紀錄") return;
+  if (message === "查無消費紀錄" || isNoCreditCardMessage(message)) return;
   if (header !== "SUCCESS")
     throw new Error(`永豐${label} API 失敗：${message}`);
 }

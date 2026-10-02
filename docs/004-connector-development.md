@@ -113,6 +113,14 @@ session 忙碌，原有專屬 API 錯誤碼仍供這些情境使用。session �
   connector 可直接以其 run item table 作為 staging source。資料 promotion 與 cursor
   必須放在同一 guarded D1 batch，secret state 需以設定版本 CAS 保護。
 
+## 無信用卡情境
+
+- 沒有信用卡是正常的產品資格狀態。同時支援存款的 connector 繼續回傳存款；僅支援信用卡的永豐與台新回傳空的金融資料，手動與排程都正常完成同步並更新 cursor。
+- 只有明確持卡旗標、可確認無卡的完整清單或無卡提示才能略過信用卡流程。沒有帳單／消費、缺少清單、HTTP 失敗、session 失效與未知錯誤，不得直接當成無卡；既有可選資料的降級規則維持原行為。
+- `packages/connectors/src/credit-card-status.ts` 的 `isNoCreditCardMessage` 只辨識以無卡敘述開頭的訊息，排除條件式申請說明；可移除銀行原生 alert 的四位數代碼前綴，但不依該代碼判定無卡。各銀行只能在信用卡階段與對應端點套用，不在共用 service 吞掉錯誤。
+- 無卡時信用卡帳戶、餘額、交易與帳單為空，不建立零餘額，不刪除先前的金融歷史資料。第一銀行、台新的 `hasCreditCard: false` 是本次擷取結果，並非使用者設定或需要持久化的產品偏好。
+- 無卡文案分支使用去識別的合成 fixture 驗證；目前新增的第一銀行、中信與台新分支尚未以真實無卡帳號驗證，不將合成錯誤代碼視為銀行正式代碼。
+
 ## 路由、排程與 challenge
 
 - 一般同步使用 `runConnectorSync`，不要在 route 或 scheduler 新增 connector switch。電子發票與集保的手動／排程入口使用各自的 durable-run service 啟動 Queue 流程。
@@ -229,7 +237,8 @@ Migration `0043_merge_legacy_invoice_duplicates.sql` 以相同發票號碼整併
 `accessToken` 與「未入帳」選單或「尚未持有本行信用卡」提示才算就緒，避免在頁面
 自己的初始化請求輪替 token 時送出額外請求。
 信用卡 `getCardOverview` 的 `creditCardFeePaid` 為 `true` 時，將本期帳單標為已繳；
-否則繳款狀態維持未知。
+否則繳款狀態維持未知。已繳的正額帳單不再計入信用卡負債，仍保留未出帳消費
+與負額帳單的溢繳餘額；帳單本身保留原應繳金額。既有餘額快照於下次同步更新。
 即時授權與之後入帳必須沿用原本的消費日期、商店、金額與卡片組成 `sourceId`，
 授權時間只補在 `authorizedAt`。每筆卡片交易的 `raw.esunFeed` 標記來源為
 `realtime` 或 `history`；同名的即時紀錄併入明細並補上時間，不另產生流水號。
@@ -242,7 +251,13 @@ Migration `0043_merge_legacy_invoice_duplicates.sql` 以相同發票號碼整併
 沒有 `esunFeed` 的舊資料，以「待入帳且 `authorized_at` 含時間」判定為即時授權。
 同日多筆同額消費可能對調刷卡時間，但筆數與金額正確；找不到明細的授權照常顯示。
 
+### 國泰世華銀行
+
+信用卡總覽偵測不到卡號時，必須有明確無卡提示，或具備信用卡總覽與「立即線上辦卡」的無卡頁面內容，才回傳空的信用卡資料。空白、維護或無法辨識的頁面使同步失敗，不能僅因缺少卡號就當成無卡。
+
 ### 永豐銀行
+
+信用卡總覽或近期帳單明確回覆無卡時，略過信用卡 SSO 與後續請求；仍保留 `LatestTx` 的「您沒有有效卡」處理。兩者皆回傳空結果，不建立信用卡帳戶。`查無消費紀錄` 只表示沒有消費，仍繼續原信用卡流程；SSO／授權失敗不當成無卡。
 
 #### 信用卡帳單與餘額
 
@@ -277,11 +292,14 @@ Migration `0043_merge_legacy_invoice_duplicates.sql` 以相同發票號碼整併
 
 ### 台新銀行
 
+- 信用卡端點的 `error` 字串或 `error.message` 明確回覆無卡時，停止信用卡查詢並以 `hasCreditCard: false` 回傳空結果；不建立預設信用卡帳戶。session 檢查不套用此規則，HTTP 失敗或未知必需查詢錯誤仍失敗。有卡但無帳單或消費則保留原流程。
 - 台新登入後若出現「訊息通知／每三個月變更一次密碼」彈窗，必須點「關閉」後再抓資料。不得點「前往修改」或「3個月後提醒」，也不得停在彈窗卻因為 session API 仍可用而回報同步成功。
 - 自動登入分別限制最多辨識六張新驗證碼、最多向銀行送出三次登入請求。辨識結果若不符合頁面要求的數字位數，不送出登入，也不扣登入額度；重新載入頁面取得新驗證碼。只有明確的驗證碼錯誤可以重試，帳密遭拒或登入結果不明時立即停止。耗盡辨識或登入額度時改由使用者人工驗證，訊息分別說明辨識上限與實際送出次數。
 - 每輪自動登入記錄辨識次數、當輪及累計登入請求數、結果分類與耗時；日誌不得記錄驗證碼、圖片或帳密。
 
 ### 中國信託銀行
+
+信用卡帳單端點 `/twrbm-card/qu002/010` 的 `cardDataList` 明確為空陣列且 `billData` 為空物件，或其 `message` 明確回覆無卡時，保留存款與交易，略過信用卡摘要、未出帳與即時消費查詢。缺少欄位不觸發此判斷；需要驗證的回應優先保留原分類。無卡文案只用於此端點，不把 `8888` 或 `ESB/9201` 直接解讀為無卡，登入後仍執行登出。
 
 中信帳單的消費日、入帳日、結帳日及繳款期限使用 `MMDDYY`；未出帳明細使用
 `YYYYMMDD`，金額與商家欄位為 `purchaseAmt`、`description`。`000000` 不代表有效日期。
@@ -308,6 +326,8 @@ Migration `0043_merge_legacy_invoice_duplicates.sql` 以相同發票號碼整併
 
 ### 新光銀行
 
+資產總覽 `HasValidCreditCard: false` 時不查詢信用卡 API，仍同步臺外幣存款與交易。未知旗標型別仍視為協定錯誤。
+
 新光信用卡 `RemainingDue` 回傳 `NA` 時視為欠款金額未提供，仍同步帳戶與歷史帳單，
 但不建立本次信用卡餘額快照、不推算已繳金額或繳清狀態。既有快照保留原時間，
 不得將 `NA` 當成零；其他無法辨識的欠款文字仍使同步失敗。
@@ -326,6 +346,7 @@ Migration `0043_merge_legacy_invoice_duplicates.sql` 以相同發票號碼整併
 
 ### 華南銀行
 
+- 信用卡未出帳回應只含明確無卡提示時，不再查歷史信用卡帳單，仍解析已取得的存款；其他查詢回應維持既有解析與錯誤處理。
 - 華南登入頁沿用一般導覽：先前 CDP 取樣曾在 1.5 秒內看到 `readyState` 為 `complete`，`USERIDTEXT` 與 `doSubmit` 皆就緒，但遠端 Browser Run 仍可能停在 `chromewebdata/` 錯誤頁。改動登入頁載入方式前必須先以 CDP 取樣確認實際停滯點，不得以推測為依據：`setRequestInterception` 會讓導覽停在 `about:blank`、`setJavaScriptEnabled(false)` 會讓 `waitForFunction`／`evaluate` 失效、`document.write` 移植會摧毀執行環境，三者都已實測不可行。Worker `fetch` 若用於輔助抓取必須設 `AbortSignal.timeout`，否則會在有 proxy 的環境無限等待。導覽的 Puppeteer timeout 外另設 6 秒硬逾時，避免 CDP 操作超時卻持續等待。登入表單或驗證碼沒出現時記導覽狀態及失敗請求的網路錯誤，並立即以連線失敗結束；只有明確的驗證碼錯誤才重試 OCR，不明登入結果不重送帳密。驗證碼準備工作限 35 秒、同步工作限 120 秒，逾時先清理 Browser session 再回報失敗（清理可能另需 15 秒）；Puppeteer 關閉失敗時以 Browser binding 關閉 session。新建的自動同步 session 使用 60 秒閒置期限，準備人工驗證碼則保留 150 秒。
 - 華南分頁必須常駐 dialog 自動關閉 handler。未預期的 `alert` 會凍結頁面 JavaScript 並使自動化停止回應；送出登入時另有 handler 記錄訊息做成敗分類，兩者並存。
 
@@ -344,8 +365,10 @@ Migration `0043_merge_legacy_invoice_duplicates.sql` 以相同發票號碼整併
 信用卡入口直接觸發既有 `a[data-func]` 的 click handler，不依賴服務總覽
 選單展開或元素可見性，也不改寫銀行表單或自行組裝信用卡請求。
 只有入口不存在時重新取得功能頁並最多重試一次；觸發後導覽／context 中斷
-則等待原查詢回應，不重複送出。三種預期 API 回應仍須完整取得才算成功；
+則等待原查詢回應，不重複送出。未確認無卡時，三種預期 API 回應仍須完整取得才算成功；
 入口失敗以 `card-entry-*` log 區分，錯誤內容須遮罩。
+
+信用卡階段的原生 alert、功能頁明確無卡提示，或預期信用卡 API 的 `HEAD.RETURNDESC` 明確回覆無卡時，保留存款與交易，以 `hasCreditCard: false` 略過信用卡流程。只有入口缺失、頁面未就緒或 API 未回應仍失敗；`未申請網服會員` 不代表無卡。HTTP 非成功回應不接受為無卡資料。
 
 第一銀行同一帳號同時只能有一個操作中的網路銀行登入。若頁面顯示「已登入導致無法操作」等占用訊息，與上述 `MULTI_SESSION_LOGIN` 回覆不同，同步會先嘗試一次確認／接管；仍無法進入時標記 `needs_user_action`，不得再當成圖形驗證碼失敗而重試 OCR。排程與手動都不強制登出其他裝置上的工作階段。
 

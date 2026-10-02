@@ -804,6 +804,31 @@ describe("sinopac App JSON parser", () => {
     });
   });
 
+  it("總覽明確回覆無卡時不執行信用卡 SSO", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify([{ Header: "FAIL", Message: "您沒有有效卡" }]),
+          { status: 200 },
+        ),
+    );
+    const result = await createSinopacConnector(
+      undefined,
+      fetchMock as typeof fetch,
+    ).sync({
+      userId: "A123456789",
+      sessionCookies,
+      protocol: "sinopac-mobile-app-json-v1",
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({
+      bankAccounts: [],
+      bankBalanceSnapshots: [],
+      bankTransactions: [],
+      creditCardBills: [],
+    });
+  });
+
   it("isolates App cookies and follows SinoCard cookie rotation", async () => {
     const authCookies = JSON.stringify([
       ...JSON.parse(sessionCookies),

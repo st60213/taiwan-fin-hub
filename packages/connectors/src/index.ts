@@ -83,6 +83,8 @@ export { sinopacConfigSchema, parseSinopacConfig } from "./sinopac";
 export type { SinopacConfig } from "./sinopac";
 import { sinopacConfigSchema } from "./sinopac";
 
+export { isNoCreditCardMessage } from "./credit-card-status";
+
 export {
   parseTaishinConfig,
   parseTaishinCreditCardData,

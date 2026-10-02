@@ -55,8 +55,6 @@
 
 ### 步驟一：一鍵部署
 
-若帳戶尚未啟用 [Cloudflare Zero Trust](https://developers.cloudflare.com/cloudflare-one/setup/)，先在 Cloudflare GUI 完成啟用，可選免費方案。
-
 點擊下方按鈕。Cloudflare 會在你的 GitHub 帳號建立新的 repository、自動建立 D1 Database，並部署至 Cloudflare Workers：
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TedLin1993/all-set-tw)
@@ -94,6 +92,8 @@ openssl rand -hex 32
 ### 延長登入期限（選用）
 
 部署頁的 **Session duration** 最多可選 **7 days**。若要延長至一個月，部署完成後前往 **Cloudflare One／Zero Trust → Access controls → Applications**，找到保護此 Worker 的 Application：
+
+若頁面顯示 **Finish your account setup**，先點擊 **Choose a plan**，完成 **Zero Trust Free** 方案設定。
 
 1. 點擊該 Application 的 **Configure**，開啟 **Application details**。
 2. 點擊頁面上方與 **All、Destinations、Policies** 同一排的 **Details** 按鈕，或直接向下捲到頁面最下方。
