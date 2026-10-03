@@ -28,7 +28,7 @@
 | 集保 e 存摺  | 交割帳戶餘額與明細（[支援銀行](https://epassbook.tdcc.com.tw/zh/g1.aspx)）、股票、ETF、基金持倉與交易 | App 登入；首次可能需要 OTP   |
 | 玉山銀行     | 存款帳戶、餘額與交易；信用卡帳單與刷卡交易                                                            | 網銀登入                     |
 | 國泰世華銀行 | 存款帳戶、餘額與交易；信用卡帳單與刷卡交易                                                            | 網銀登入；額外驗證需人工處理 |
-| 永豐行動銀行 | 信用卡總覽、近期帳單與未出帳消費                                                                      | 網銀登入；AI 自動辨識驗證碼  |
+| 永豐行動銀行 | 臺外幣活存帳戶、餘額與近三個月交易；信用卡總覽、近期帳單與未出帳消費                                  | 網銀登入；AI 自動辨識驗證碼  |
 | 台新銀行     | 信用卡額度、帳單、已入帳與即時授權消費                                                                | 網銀登入；AI 自動辨識驗證碼  |
 | 中國信託銀行 | 存款帳戶、餘額與交易；信用卡帳單、已入帳、未出帳與即時消費明細                                        | App 登入                     |
 | 新光銀行     | 臺外幣帳戶、餘額、交易明細與信用卡帳單                                                                | App 登入                     |
@@ -160,7 +160,7 @@ npm run build
 
 後端執行於 Cloudflare Workers，以 Hono 提供 API，並整合 D1、Access、Browser Run、Workers AI、Cron Triggers 與 Queues。
 
-專案以 npm workspaces 管理 Web、Worker、共用型別、資料庫與連接器套件。
+專案以 npm workspaces 管理 `apps/web`、`apps/worker` 與根目錄的 `shared/`。`shared/` 以 `@taiwan-fin-hub/shared` 提供前後端共用的型別、契約與純邏輯。資料庫程式位於 `apps/worker/src/db`，SQL migrations 位於 `apps/worker/migrations`；各銀行、集保與電子發票的同步、connector、API client 及資料解析集中於 `apps/worker/src/sources/<connectorId>`，共用同步管理位於 `apps/worker/src/features/sync`。
 
 前後端與共用套件皆使用 TypeScript 7 型別檢查；Svelte 前端透過 `svelte-check --tsgo` 執行，並保留工具所需的 TypeScript 6 相依。
 

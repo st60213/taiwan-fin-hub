@@ -46,6 +46,9 @@
         : "最近帳單已繳";
     }
     const dueDate = card.paymentDueDate ?? latestBill?.paymentDueDate;
+    if (latestBill?.isPaid === 0) {
+      return dueDate ? `帳單待繳 · 期限 ${formatDate(dueDate)}` : "帳單待繳";
+    }
     if (dueDate) return `繳款期限 ${formatDate(dueDate)}`;
     return card.balance == null ? "繳款期限待同步" : "繳款期限尚未提供";
   }
@@ -174,7 +177,7 @@
             </div>
             <p class="text-right text-sm font-medium tabular-nums text-coral">
               {card.balance == null
-                ? "金額尚未取得"
+                ? "剩餘應繳金額未取得"
                 : formatCurrency(card.balance, card.currency)}
             </p>
           </div>

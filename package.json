@@ -5,7 +5,7 @@
   "type": "module",
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "shared"
   ],
   "scripts": {
     "prebuild": "node scripts/prepare-cloudflare-build.mjs",
@@ -14,7 +14,7 @@
     "format:check": "prettier --check .",
     "typecheck": "npm run typecheck --workspaces",
     "test:unit": "npm run test:unit -w @taiwan-fin-hub/web",
-    "test:backend": "npm test -w @taiwan-fin-hub/worker && npm test -w @taiwan-fin-hub/db && npm run test:selfcheck -w @taiwan-fin-hub/connectors && npm run test:deploy",
+    "test:backend": "npm test -w @taiwan-fin-hub/worker && npm run test:deploy",
     "test:deploy": "node --test scripts/deploy-with-vapid.test.mjs scripts/cloudflare-access.test.mjs scripts/sync-upstream.test.mjs",
     "test:e2e": "npm run test:e2e -w @taiwan-fin-hub/web",
     "verify:web": "npm run typecheck -w @taiwan-fin-hub/web && npm run test:unit -w @taiwan-fin-hub/web && npm run test:e2e -w @taiwan-fin-hub/web && npm run build -w @taiwan-fin-hub/web",
